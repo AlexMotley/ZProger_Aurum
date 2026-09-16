@@ -11,6 +11,7 @@ import { TransactionFormModal } from "@/components/transactions/TransactionFormM
 import { useTransactions, useDeleteTransaction, useTransactionYears } from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
 import { useTags } from "@/hooks/useTags";
+import { useAccounts } from "@/hooks/useAccounts";
 import type { TransactionSort } from "@/api/transactions";
 import { useTranslation } from "@/lib/i18n";
 import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
@@ -46,6 +47,7 @@ export function TransactionsPage() {
   const [type, setType] = useState<TransactionType | "">("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [tagId, setTagId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>("");
   const [sort, setSort] = useState<TransactionSort>("date_desc");
   const [page, setPage] = useState(1);
 
@@ -67,6 +69,7 @@ export function TransactionsPage() {
 
   const { data: categories } = useCategories();
   const { data: tags } = useTags();
+  const { data: accounts } = useAccounts();
   const { data: years } = useTransactionYears();
   const { data, isLoading, isError } = useTransactions({
     // A search looks for a purchase from an unknown month, so it must span
@@ -77,6 +80,7 @@ export function TransactionsPage() {
     type: type || undefined,
     category_id: categoryId ? Number(categoryId) : undefined,
     tag_id: tagId ? Number(tagId) : undefined,
+    account_id: accountId ? Number(accountId) : undefined,
     sort,
     page,
     page_size: PAGE_SIZE,
@@ -244,6 +248,23 @@ export function TransactionsPage() {
             {tags.map((tag) => (
               <option key={tag.id} value={tag.id}>
                 {tag.name}
+              </option>
+            ))}
+          </Select>
+        )}
+        {accounts && accounts.length > 0 && (
+          <Select
+            value={accountId}
+            onChange={(event) => {
+              setAccountId(event.target.value);
+              setPage(1);
+            }}
+            className="sm:w-48"
+          >
+            <option value="">{t("transactions.allAccounts")}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
               </option>
             ))}
           </Select>
