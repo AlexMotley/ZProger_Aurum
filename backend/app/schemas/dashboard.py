@@ -36,3 +36,4 @@ class DashboardSummary(BaseModel):
     net: Decimal
     transferred_out: Decimal
     spending_by_category: list[CategoryBreakdownItem]
+    income_by_category: list[CategoryBreakdownItem]
