@@ -271,6 +271,7 @@ const ru = {
   "transactions.income": "Доходы",
   "transactions.transfer": "Переводы",
   "transactions.allCategories": "Все категории",
+  "transactions.noCategories": "Нет категорий",
   "transactions.allTags": "Все теги",
   "transactions.allAccounts": "Все счета",
   "transactions.failedToLoad": "Не удалось загрузить транзакции.",
@@ -282,6 +283,7 @@ const ru = {
   "transactions.confirmDelete": "Удалить транзакцию «{{description}}»?",
   "transactions.transferSuffix": "→ перевод",
   "transactions.sortDateDesc": "Сначала новые",
+  "transactions.sortDateAsc": "Сначала старые",
   "transactions.sortAmountDesc": "Сумма: сначала больше",
   "transactions.sortAmountAsc": "Сумма: сначала меньше",
 
@@ -793,6 +795,7 @@ const en: Record<keyof typeof ru, string> = {
   "transactions.income": "Income",
   "transactions.transfer": "Transfers",
   "transactions.allCategories": "All categories",
+  "transactions.noCategories": "No categories",
   "transactions.allTags": "All tags",
   "transactions.allAccounts": "All accounts",
   "transactions.failedToLoad": "Failed to load transactions.",
@@ -804,6 +807,7 @@ const en: Record<keyof typeof ru, string> = {
   "transactions.confirmDelete": "Delete transaction “{{description}}”?",
   "transactions.transferSuffix": "→ transfer",
   "transactions.sortDateDesc": "Newest first",
+  "transactions.sortDateAsc": "Oldest first",
   "transactions.sortAmountDesc": "Amount: high to low",
   "transactions.sortAmountAsc": "Amount: low to high",
 

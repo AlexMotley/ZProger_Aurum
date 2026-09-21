@@ -211,28 +211,35 @@ export function TransactionsPage() {
             setCategoryId(event.target.value);
             setPage(1);
           }}
+          disabled={type === "transfer"}
           className="sm:w-56"
         >
-          <option value="">{t("transactions.allCategories")}</option>
-          {expenseCategoryOptions.length > 0 && (
-            <optgroup label={t("reports.expenseGroup")}>
-              {expenseCategoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.indented ? `    ↳ ` : ""}
-                  {translateCategoryName(category.name)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {incomeCategoryOptions.length > 0 && (
-            <optgroup label={t("reports.incomeGroup")}>
-              {incomeCategoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.indented ? `    ↳ ` : ""}
-                  {translateCategoryName(category.name)}
-                </option>
-              ))}
-            </optgroup>
+          {type === "transfer" ? (
+            <option value="">{t("transactions.noCategories")}</option>
+          ) : (
+            <>
+              <option value="">{t("transactions.allCategories")}</option>
+              {type !== "income" && expenseCategoryOptions.length > 0 && (
+                <optgroup label={t("reports.expenseGroup")}>
+                  {expenseCategoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {type !== "expense" && incomeCategoryOptions.length > 0 && (
+                <optgroup label={t("reports.incomeGroup")}>
+                  {incomeCategoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </>
           )}
         </Select>
         {tags && tags.length > 0 && (
@@ -278,6 +285,7 @@ export function TransactionsPage() {
           className="sm:w-56"
         >
           <option value="date_desc">{t("transactions.sortDateDesc")}</option>
+          <option value="date_asc">{t("transactions.sortDateAsc")}</option>
           <option value="amount_desc">{t("transactions.sortAmountDesc")}</option>
           <option value="amount_asc">{t("transactions.sortAmountAsc")}</option>
         </Select>
