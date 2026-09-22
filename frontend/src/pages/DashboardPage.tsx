@@ -3,6 +3,7 @@ import { MonthSelector } from "@/components/layout/MonthSelector";
 import { YearSelector } from "@/components/layout/YearSelector";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SpendingByCategoryCard } from "@/components/dashboard/SpendingByCategoryCard";
+import { IncomeByCategoryCard } from "@/components/dashboard/IncomeByCategoryCard";
 import { RecentTransactionsCard } from "@/components/dashboard/RecentTransactionsCard";
 import { AlertBanner } from "@/components/insights/AlertBanner";
 import { useDashboardSummary } from "@/hooks/useDashboard";
@@ -79,6 +80,8 @@ export function DashboardPage() {
         <SpendingByCategoryCard items={data?.spending_by_category ?? []} />
         <RecentTransactionsCard year={year} month={month} />
       </div>
+
+      <IncomeByCategoryCard items={data?.income_by_category ?? []} />
     </div>
   );
 }

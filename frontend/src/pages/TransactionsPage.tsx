@@ -11,6 +11,7 @@ import { TransactionFormModal } from "@/components/transactions/TransactionFormM
 import { useTransactions, useDeleteTransaction, useTransactionYears } from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
 import { useTags } from "@/hooks/useTags";
+import { useAccounts } from "@/hooks/useAccounts";
 import type { TransactionSort } from "@/api/transactions";
 import { useTranslation } from "@/lib/i18n";
 import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
@@ -46,6 +47,7 @@ export function TransactionsPage() {
   const [type, setType] = useState<TransactionType | "">("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [tagId, setTagId] = useState<string>("");
+  const [accountId, setAccountId] = useState<string>("");
   const [sort, setSort] = useState<TransactionSort>("date_desc");
   const [page, setPage] = useState(1);
 
@@ -67,6 +69,7 @@ export function TransactionsPage() {
 
   const { data: categories } = useCategories();
   const { data: tags } = useTags();
+  const { data: accounts } = useAccounts();
   const { data: years } = useTransactionYears();
   const { data, isLoading, isError } = useTransactions({
     // A search looks for a purchase from an unknown month, so it must span
@@ -77,6 +80,7 @@ export function TransactionsPage() {
     type: type || undefined,
     category_id: categoryId ? Number(categoryId) : undefined,
     tag_id: tagId ? Number(tagId) : undefined,
+    account_id: accountId ? Number(accountId) : undefined,
     sort,
     page,
     page_size: PAGE_SIZE,
@@ -207,28 +211,35 @@ export function TransactionsPage() {
             setCategoryId(event.target.value);
             setPage(1);
           }}
+          disabled={type === "transfer"}
           className="sm:w-56"
         >
-          <option value="">{t("transactions.allCategories")}</option>
-          {expenseCategoryOptions.length > 0 && (
-            <optgroup label={t("reports.expenseGroup")}>
-              {expenseCategoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.indented ? `    ↳ ` : ""}
-                  {translateCategoryName(category.name)}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          {incomeCategoryOptions.length > 0 && (
-            <optgroup label={t("reports.incomeGroup")}>
-              {incomeCategoryOptions.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.indented ? `    ↳ ` : ""}
-                  {translateCategoryName(category.name)}
-                </option>
-              ))}
-            </optgroup>
+          {type === "transfer" ? (
+            <option value="">{t("transactions.noCategories")}</option>
+          ) : (
+            <>
+              <option value="">{t("transactions.allCategories")}</option>
+              {type !== "income" && expenseCategoryOptions.length > 0 && (
+                <optgroup label={t("reports.expenseGroup")}>
+                  {expenseCategoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {type !== "expense" && incomeCategoryOptions.length > 0 && (
+                <optgroup label={t("reports.incomeGroup")}>
+                  {incomeCategoryOptions.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.indented ? `    ↳ ` : ""}
+                      {translateCategoryName(category.name)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </>
           )}
         </Select>
         {tags && tags.length > 0 && (
@@ -248,6 +259,23 @@ export function TransactionsPage() {
             ))}
           </Select>
         )}
+        {accounts && accounts.length > 0 && (
+          <Select
+            value={accountId}
+            onChange={(event) => {
+              setAccountId(event.target.value);
+              setPage(1);
+            }}
+            className="sm:w-48"
+          >
+            <option value="">{t("transactions.allAccounts")}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.name}
+              </option>
+            ))}
+          </Select>
+        )}
         <Select
           value={sort}
           onChange={(event) => {
@@ -257,6 +285,7 @@ export function TransactionsPage() {
           className="sm:w-56"
         >
           <option value="date_desc">{t("transactions.sortDateDesc")}</option>
+          <option value="date_asc">{t("transactions.sortDateAsc")}</option>
           <option value="amount_desc">{t("transactions.sortAmountDesc")}</option>
           <option value="amount_asc">{t("transactions.sortAmountAsc")}</option>
         </Select>

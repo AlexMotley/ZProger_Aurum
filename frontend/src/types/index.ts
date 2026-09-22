@@ -191,6 +191,7 @@ export interface DashboardSummary {
   net: string;
   transferred_out: string;
   spending_by_category: CategoryBreakdownItem[];
+  income_by_category: CategoryBreakdownItem[];
 }
 
 export type AssetClass = "investments" | "crypto" | "real_estate" | "vehicles" | "precious_metals" | "other";

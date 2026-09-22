@@ -9,7 +9,7 @@ import { useCategories } from "@/hooks/useCategories";
 import { useCreateTransaction, useUpdateTransaction } from "@/hooks/useTransactions";
 import { useTranslation } from "@/lib/i18n";
 import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrencyExact } from "@/lib/format";
 import type { Tag, Transaction, TransactionInput, TransactionSplitInput, TransactionType } from "@/types";
 
 interface TransactionFormModalProps {
@@ -460,11 +460,11 @@ export function TransactionFormModal({ open, onClose, transaction }: Transaction
                   <p className={`text-xs ${splitRemainingCents === 0 ? "text-success" : "text-text-muted"}`}>
                     {splitRemainingCents > 0
                       ? t("transactions.form.splitRemainingLabel", {
-                          amount: formatCurrency(splitRemainingCents / 100),
+                          amount: formatCurrencyExact(splitRemainingCents / 100),
                         })
                       : splitRemainingCents < 0
                         ? t("transactions.form.splitOverAllocatedLabel", {
-                            amount: formatCurrency(Math.abs(splitRemainingCents) / 100),
+                            amount: formatCurrencyExact(Math.abs(splitRemainingCents) / 100),
                           })
                         : t("transactions.form.splitFullyAllocatedLabel")}
                   </p>
