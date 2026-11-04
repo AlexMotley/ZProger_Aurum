@@ -5,7 +5,7 @@ import { Input, Label, Select } from "@/components/ui/Input";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateBudget, useUpdateBudget } from "@/hooks/useBudgets";
 import { useTranslation } from "@/lib/i18n";
-import { translateCategoryName } from "@/lib/categoryLabels";
+import { buildHierarchicalCategories, categoryOptionLabel, translateCategoryName } from "@/lib/categoryLabels";
 import type { Budget } from "@/types";
 
 interface BudgetFormModalProps {
@@ -27,9 +27,15 @@ export function BudgetFormModal({ open, onClose, budget, excludeCategoryIds }: B
   const [monthlyLimit, setMonthlyLimit] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const availableCategories = (categories ?? [])
-    .filter((category) => category.kind === "expense" && !excludeCategoryIds.includes(category.id))
-    .sort((a, b) => translateCategoryName(a.name).localeCompare(translateCategoryName(b.name), language));
+  // Same hierarchical ordering as every other category picker — each
+  // subcategory sits right under its parent and is flagged for the
+  // indented "↳" label.
+  const availableCategories = buildHierarchicalCategories(
+    (categories ?? []).filter(
+      (category) => category.kind === "expense" && !excludeCategoryIds.includes(category.id)
+    ),
+    language
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -76,7 +82,7 @@ export function BudgetFormModal({ open, onClose, budget, excludeCategoryIds }: B
             <Select id="budget-category" required value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
               {availableCategories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {translateCategoryName(category.name)}
+                  {categoryOptionLabel(category)}
                 </option>
               ))}
             </Select>

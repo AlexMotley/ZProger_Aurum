@@ -14,7 +14,7 @@ import { useTags } from "@/hooks/useTags";
 import { useAccounts } from "@/hooks/useAccounts";
 import type { TransactionSort } from "@/api/transactions";
 import { useTranslation } from "@/lib/i18n";
-import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
+import { buildHierarchicalCategories, categoryOptionLabel } from "@/lib/categoryLabels";
 import type { Transaction, TransactionType } from "@/types";
 
 const PAGE_SIZE = 20;
@@ -223,8 +223,7 @@ export function TransactionsPage() {
                 <optgroup label={t("reports.expenseGroup")}>
                   {expenseCategoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.indented ? `    ↳ ` : ""}
-                      {translateCategoryName(category.name)}
+                      {categoryOptionLabel(category)}
                     </option>
                   ))}
                 </optgroup>
@@ -233,8 +232,7 @@ export function TransactionsPage() {
                 <optgroup label={t("reports.incomeGroup")}>
                   {incomeCategoryOptions.map((category) => (
                     <option key={category.id} value={category.id}>
-                      {category.indented ? `    ↳ ` : ""}
-                      {translateCategoryName(category.name)}
+                      {categoryOptionLabel(category)}
                     </option>
                   ))}
                 </optgroup>
