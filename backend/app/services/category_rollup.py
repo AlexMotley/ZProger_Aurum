@@ -60,7 +60,7 @@ class CategoryRollupItem:
     children: list[CategoryRollupChildItem] = field(default_factory=list)
 
 
-async def _raw_category_contributions(
+async def raw_category_contributions(
     session: AsyncSession,
     *,
     transaction_type: TransactionType,
@@ -72,7 +72,12 @@ async def _raw_category_contributions(
     contributes one row (its own category); a split one contributes one row
     per split line — never both for the same transaction, since a
     transaction is either plain (category_id set, no splits) or split
-    (category_id NULL, 2+ splits), enforced at write time."""
+    (category_id NULL, 2+ splits), enforced at write time.
+
+    Public (not just used by rollup_spending_by_top_level_category below):
+    services/diagrams.py's SUBCATEGORY dimension wants these leaf-level
+    contributions as-is, without the parent rollup this module otherwise
+    exists for."""
     plain_stmt = select(Transaction.id, Transaction.category_id, Transaction.amount).where(
         Transaction.type == transaction_type, Transaction.category_id.is_not(None)
     )
@@ -103,7 +108,7 @@ async def rollup_spending_by_top_level_category(
     """Every top-level category's total for the period, sorted by amount
     desc (category sort_order as tiebreak — same order the SQL-only version
     used to produce)."""
-    contributions = await _raw_category_contributions(
+    contributions = await raw_category_contributions(
         session, transaction_type=transaction_type, start_date=start_date, end_date=end_date
     )
     if not contributions:

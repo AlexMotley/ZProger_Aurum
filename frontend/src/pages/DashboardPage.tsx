@@ -1,15 +1,21 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { MonthSelector } from "@/components/layout/MonthSelector";
 import { YearSelector } from "@/components/layout/YearSelector";
+import { Button } from "@/components/ui/Button";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SpendingByCategoryCard } from "@/components/dashboard/SpendingByCategoryCard";
 import { IncomeByCategoryCard } from "@/components/dashboard/IncomeByCategoryCard";
 import { RecentTransactionsCard } from "@/components/dashboard/RecentTransactionsCard";
+import { DashboardWidgetCard } from "@/components/dashboard/DashboardWidgetCard";
+import { AddWidgetModal } from "@/components/dashboard/AddWidgetModal";
 import { AlertBanner } from "@/components/insights/AlertBanner";
 import { useDashboardSummary } from "@/hooks/useDashboard";
 import { useTransactionYears } from "@/hooks/useTransactions";
+import { useDashboardWidgets, useDeleteDashboardWidget } from "@/hooks/useDashboardWidgets";
 import { formatCurrency, formatSignedCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n";
+import type { DashboardWidget } from "@/types";
 
 /** Share of income left over after spending (net / real_income). `null` when
  * there was no income to take a share of, rather than a misleading 0%. */
@@ -31,6 +37,27 @@ export function DashboardPage() {
 
   const { data, isLoading, isError } = useDashboardSummary(year, month);
   const rate = data ? savingsRate(Number(data.real_income), Number(data.net)) : null;
+
+  const [widgetModalOpen, setWidgetModalOpen] = useState(false);
+  const [editingWidget, setEditingWidget] = useState<DashboardWidget | null>(null);
+  const { data: widgets } = useDashboardWidgets(year, month);
+  const deleteWidget = useDeleteDashboardWidget();
+
+  function openCreateWidgetModal() {
+    setEditingWidget(null);
+    setWidgetModalOpen(true);
+  }
+
+  function openEditWidgetModal(widget: DashboardWidget) {
+    setEditingWidget(widget);
+    setWidgetModalOpen(true);
+  }
+
+  function handleDeleteWidget(widget: DashboardWidget) {
+    if (window.confirm(t("dashboard.widgets.confirmDelete", { title: widget.title }))) {
+      deleteWidget.mutate(widget.id);
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -82,6 +109,37 @@ export function DashboardPage() {
       </div>
 
       <IncomeByCategoryCard items={data?.income_by_category ?? []} />
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+          {t("dashboard.widgets.sectionTitle")}
+        </h2>
+        <Button variant="secondary" onClick={openCreateWidgetModal}>
+          <Plus size={16} />
+          {t("dashboard.widgets.addButton")}
+        </Button>
+      </div>
+
+      {widgets && widgets.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {widgets.map((widget) => (
+            <DashboardWidgetCard
+              key={widget.id}
+              widget={widget}
+              onEdit={openEditWidgetModal}
+              onDelete={handleDeleteWidget}
+            />
+          ))}
+        </div>
+      )}
+
+      <AddWidgetModal
+        open={widgetModalOpen}
+        onClose={() => setWidgetModalOpen(false)}
+        year={year}
+        month={month}
+        widget={editingWidget}
+      />
     </div>
   );
 }
