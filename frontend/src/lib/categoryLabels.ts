@@ -60,12 +60,31 @@ export function buildHierarchicalCategories<C extends { id: number; parent_id: n
   const sorted = [...categories].sort((a, b) =>
     translateCategoryName(a.name).localeCompare(translateCategoryName(b.name), language)
   );
+  // A subcategory whose parent isn't in `categories` (e.g. the caller
+  // filtered the parent out) has nothing to sit under, so it's listed as a
+  // root instead of being dropped from the dropdown entirely.
+  const presentIds = new Set(categories.map((category) => category.id));
+  const isRoot = (category: C) => category.parent_id === null || !presentIds.has(category.parent_id);
   const result: (C & { indented: boolean })[] = [];
-  for (const parent of sorted.filter((category) => category.parent_id === null)) {
+  for (const parent of sorted.filter(isRoot)) {
     result.push({ ...parent, indented: false });
-    for (const child of sorted.filter((category) => category.parent_id === parent.id)) {
+    for (const child of sorted.filter((category) => !isRoot(category) && category.parent_id === parent.id)) {
       result.push({ ...child, indented: true });
     }
   }
   return result;
+}
+
+/** The visual prefix for a subcategory inside a native <select>: four
+ * non-breaking spaces plus an arrow. Plain spaces can't be used here —
+ * HTML collapses runs of ordinary whitespace in option text, so the
+ * indent would disappear and only the arrow would remain. */
+const SUBCATEGORY_PREFIX = "    ↳ ";
+
+/** The label to print inside an <option> for one entry produced by
+ * {@link buildHierarchicalCategories}: the translated name, indented and
+ * arrow-prefixed when it's a subcategory. Every category dropdown goes
+ * through this so the hierarchy looks identical on all pages. */
+export function categoryOptionLabel(category: { name: string; indented: boolean }): string {
+  return `${category.indented ? SUBCATEGORY_PREFIX : ""}${translateCategoryName(category.name)}`;
 }

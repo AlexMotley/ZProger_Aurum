@@ -111,7 +111,7 @@ async def list_transactions(
     tag_id: int | None = None,
     type: TransactionType | None = None,
     search: str | None = Query(default=None, min_length=1, max_length=255),
-    sort: Literal["date_desc", "amount_desc", "amount_asc"] = Query(default="date_desc"),
+    sort: Literal["date_desc", "date_asc", "amount_desc", "amount_asc"] = Query(default="date_desc"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
@@ -135,12 +135,13 @@ async def list_transactions(
         stmt = stmt.where(Transaction.account_id == account_id)
         count_stmt = count_stmt.where(Transaction.account_id == account_id)
     if category_id is not None:
-        # A split transaction has category_id=NULL on the row itself — the
-        # category lives on its split lines instead, so filtering by exact
-        # column match alone would silently drop it from a category filter
-        # it genuinely belongs to.
+        matching_category_ids = select(Category.id).where(
+            or_(Category.id == category_id, Category.parent_id == category_id)
+        )
+        
         category_filter = or_(
-            Transaction.category_id == category_id, Transaction.splits.any(TransactionSplit.category_id == category_id)
+            Transaction.category_id.in_(matching_category_ids),
+            Transaction.splits.any(TransactionSplit.category_id.in_(matching_category_ids)),
         )
         stmt = stmt.where(category_filter)
         count_stmt = count_stmt.where(category_filter)
@@ -170,6 +171,8 @@ async def list_transactions(
         stmt = stmt.order_by(Transaction.amount.desc(), Transaction.id.desc())
     elif sort == "amount_asc":
         stmt = stmt.order_by(Transaction.amount.asc(), Transaction.id.desc())
+    elif sort == "date_asc":
+        stmt = stmt.order_by(Transaction.date.asc(), Transaction.id.asc())
     else:
         stmt = stmt.order_by(Transaction.date.desc(), Transaction.id.desc())
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)

@@ -16,11 +16,16 @@ export function getIntlLocale(language: Language = getLanguage()): string {
  * EUR, RUB, ...) exactly as compact as plain "symbol" already renders them
  * — unlike currencyDisplay: "code", which would fix CNY/HKD but turn every
  * other currency's "$1,234"/"1 234 ₽" into "USD 1,234"/"1 234 RUB". */
-function createCurrencyFormatter(currency: string, maximumFractionDigits: number): Intl.NumberFormat {
+function createCurrencyFormatter(
+  currency: string,
+  maximumFractionDigits: number,
+  minimumFractionDigits = 0
+): Intl.NumberFormat {
   return new Intl.NumberFormat(getIntlLocale(), {
     style: "currency",
     currency,
     currencyDisplay: "narrowSymbol",
+    minimumFractionDigits,
     maximumFractionDigits,
   });
 }
@@ -31,6 +36,15 @@ function createCurrencyFormatter(currency: string, maximumFractionDigits: number
 export function formatCurrency(amount: number | string, currency: string = getCurrency()): string {
   const value = typeof amount === "string" ? Number(amount) : amount;
   return createCurrencyFormatter(currency, 0).format(value);
+}
+
+/** Same as formatCurrency but keeps kopecks/cents instead of rounding to
+ * whole units — for Accounts and Transactions, where the user is checking
+ * the exact stored amount against a bank statement and a rounded display
+ * would look like a discrepancy that isn't really there. */
+export function formatCurrencyExact(amount: number | string, currency: string = getCurrency()): string {
+  const value = typeof amount === "string" ? Number(amount) : amount;
+  return createCurrencyFormatter(currency, 2).format(value);
 }
 
 /** Same currency formatting as formatCurrency, but scales decimal precision

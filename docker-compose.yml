@@ -7,12 +7,16 @@ services:
       # "change-me" so this matches .env.example exactly: with no .env at all
       # the fallback here used to be "aurum" while the template said
       # "change-me", i.e. "the default password" meant two different things
-      # depending on whether the file existed. Postgres isn't published to the
-      # host (no ports: below), so reaching it means already being on the
-      # container network — but see .env.example for the trap that makes this
-      # worth getting right the first time.
+      # depending on whether the file existed. Now published to the host below
+      # (loopback-only), so this password is reachable from any local client
+      # (e.g. DBeaver), not just other containers on the compose network — see
+      # .env.example for the trap that makes this worth getting right anyway.
       POSTGRES_PASSWORD: ${AURUM_POSTGRES_PASSWORD:-change-me}
       POSTGRES_DB: ${AURUM_POSTGRES_DB:-aurum}
+    ports:
+      # Bound to loopback only, same as the web service below — reachable from
+      # a local DB client (DBeaver, psql) on this machine, not from the LAN.
+      - "127.0.0.1:5432:5432"
     volumes:
       - aurum_pgdata:/var/lib/postgresql/data
     healthcheck:

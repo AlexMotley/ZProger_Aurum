@@ -6,7 +6,7 @@ import { useAccounts } from "@/hooks/useAccounts";
 import { useCategories } from "@/hooks/useCategories";
 import { useCreateRecurring, useUpdateRecurring } from "@/hooks/useRecurring";
 import { useTranslation } from "@/lib/i18n";
-import { translateCategoryName } from "@/lib/categoryLabels";
+import { buildHierarchicalCategories, categoryOptionLabel } from "@/lib/categoryLabels";
 import type { RecurringFrequency, RecurringTransaction, TransactionType } from "@/types";
 
 interface RecurringFormModalProps {
@@ -32,7 +32,7 @@ const EMPTY_FORM = {
 };
 
 export function RecurringFormModal({ open, onClose, recurring }: RecurringFormModalProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const { data: accounts } = useAccounts();
   const { data: categories } = useCategories();
   const createRecurring = useCreateRecurring();
@@ -61,8 +61,13 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
     setError(null);
   }, [open, recurring, accounts]);
 
-  const relevantCategories = (categories ?? []).filter((category) =>
-    form.type === "income" ? category.kind === "income" : category.kind === "expense"
+  // Hierarchical like the transaction form's picker: subcategories sit
+  // under their parent and get the indented "↳" label.
+  const relevantCategories = buildHierarchicalCategories(
+    (categories ?? []).filter((category) =>
+      form.type === "income" ? category.kind === "income" : category.kind === "expense"
+    ),
+    language
   );
 
   const isSaving = createRecurring.isPending || updateRecurring.isPending;
@@ -231,7 +236,7 @@ export function RecurringFormModal({ open, onClose, recurring }: RecurringFormMo
               <option value="">{t("transactions.form.noCategory")}</option>
               {relevantCategories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {translateCategoryName(category.name)}
+                  {categoryOptionLabel(category)}
                 </option>
               ))}
             </Select>

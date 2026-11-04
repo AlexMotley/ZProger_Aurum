@@ -14,7 +14,7 @@ import { useDeleteTransaction, useTransactions, useTransactionYears } from "@/ho
 import type { TransactionSort } from "@/api/transactions";
 import { computeRange, type CustomYearRange, type RangePreset } from "@/lib/dateRange";
 import { useTranslation } from "@/lib/i18n";
-import { buildHierarchicalCategories, translateCategoryName } from "@/lib/categoryLabels";
+import { buildHierarchicalCategories, categoryOptionLabel } from "@/lib/categoryLabels";
 import type { Transaction } from "@/types";
 
 const PAGE_SIZE = 20;
@@ -102,8 +102,7 @@ export function ReportsPage() {
               <optgroup label={t("reports.expenseGroup")}>
                 {expenseCategories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {category.indented ? `    ↳ ` : ""}
-                    {translateCategoryName(category.name)}
+                    {categoryOptionLabel(category)}
                   </option>
                 ))}
               </optgroup>
@@ -112,8 +111,7 @@ export function ReportsPage() {
               <optgroup label={t("reports.incomeGroup")}>
                 {incomeCategories.map((category) => (
                   <option key={category.id} value={category.id}>
-                    {category.indented ? `    ↳ ` : ""}
-                    {translateCategoryName(category.name)}
+                    {categoryOptionLabel(category)}
                   </option>
                 ))}
               </optgroup>
