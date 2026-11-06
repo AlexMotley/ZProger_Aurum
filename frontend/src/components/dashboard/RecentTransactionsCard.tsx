@@ -6,15 +6,27 @@ import { useTranslation } from "@/lib/i18n";
 import { categoryPath, translateCategoryName } from "@/lib/categoryLabels";
 import { useTransactions } from "@/hooks/useTransactions";
 import { useCategories } from "@/hooks/useCategories";
+import { isCompleteDayRange, type DayRange } from "@/lib/dateRange";
 
 interface RecentTransactionsCardProps {
   year: number;
   month: number;
+  /** Day range picked on the Dashboard; when complete it replaces
+   * year/month, exactly as it does for every other card on the page. */
+  dayRange?: DayRange;
 }
 
-export function RecentTransactionsCard({ year, month }: RecentTransactionsCardProps) {
+export function RecentTransactionsCard({ year, month, dayRange }: RecentTransactionsCardProps) {
   const { t } = useTranslation();
-  const { data, isLoading } = useTransactions({ year, month, page: 1, page_size: 6 });
+  const hasDayRange = dayRange !== undefined && isCompleteDayRange(dayRange);
+  const { data, isLoading } = useTransactions({
+    year: hasDayRange ? undefined : year,
+    month: hasDayRange ? undefined : month,
+    start_date: hasDayRange ? dayRange.startDate! : undefined,
+    end_date: hasDayRange ? dayRange.endDate! : undefined,
+    page: 1,
+    page_size: 6,
+  });
   const { data: categories } = useCategories();
 
   return (
@@ -22,7 +34,11 @@ export function RecentTransactionsCard({ year, month }: RecentTransactionsCardPr
       <CardHeader>
         <CardTitle>{t("dashboard.recentTransactionsTitle")}</CardTitle>
         <Link
-          to={`/transactions?year=${year}&month=${month}`}
+          to={
+            hasDayRange
+              ? `/transactions?start_date=${dayRange.startDate}&end_date=${dayRange.endDate}`
+              : `/transactions?year=${year}&month=${month}`
+          }
           className="text-xs font-medium text-series-1 hover:underline"
         >
           {t("dashboard.allTransactionsLink")}

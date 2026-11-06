@@ -1,5 +1,4 @@
 """Aggregation logic behind the Overview dashboard."""
-import calendar
 from datetime import date
 from decimal import Decimal
 
@@ -10,16 +9,12 @@ from app.models.enums import TransactionType
 from app.models.transaction import Transaction
 from app.schemas.dashboard import CategoryBreakdownChildItem, CategoryBreakdownItem, DashboardSummary
 from app.services.category_rollup import rollup_spending_by_top_level_category
+from app.services.period import resolve_period
 
 # Categorical slots are capped at 8 (dataviz skill: a 9th series folds into "Other",
 # never a generated hue) — this is also the exact size of the default category set.
 MAX_CHART_SLICES = 8
 OTHER_SLICE_COLOR = "#898781"  # muted ink, reserved for the non-categorical rollup
-
-
-def _month_bounds(year: int, month: int) -> tuple[date, date]:
-    last_day = calendar.monthrange(year, month)[1]
-    return date(year, month, 1), date(year, month, last_day)
 
 
 async def _category_breakdown(
@@ -68,8 +63,16 @@ async def _category_breakdown(
     return breakdown
 
 
-async def get_dashboard_summary(session: AsyncSession, year: int, month: int) -> DashboardSummary:
-    start, end = _month_bounds(year, month)
+async def get_dashboard_summary(
+    session: AsyncSession,
+    year: int,
+    month: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> DashboardSummary:
+    """`start_date`/`end_date` narrow the summary to a day range; without
+    them the whole of year/month is summarised, as before."""
+    start, end = resolve_period(year, month, start_date, end_date)
 
     totals_stmt = (
         select(Transaction.type, func.coalesce(func.sum(Transaction.amount), 0))
@@ -91,8 +94,8 @@ async def get_dashboard_summary(session: AsyncSession, year: int, month: int) ->
     )
 
     return DashboardSummary(
-        year=year,
-        month=month,
+        year=start.year,
+        month=start.month,
         real_income=real_income,
         spent=spent,
         net=real_income - spent,

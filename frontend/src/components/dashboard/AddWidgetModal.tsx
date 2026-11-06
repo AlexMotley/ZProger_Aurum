@@ -6,6 +6,7 @@ import { Input, Label, Select } from "@/components/ui/Input";
 import { useAccounts } from "@/hooks/useAccounts";
 import { useCreateDashboardWidget, useUpdateDashboardWidget, useWidgetTypes } from "@/hooks/useDashboardWidgets";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
+import type { DayRange } from "@/lib/dateRange";
 import type {
   DashboardWidget,
   DashboardWidgetInput,
@@ -21,6 +22,9 @@ interface AddWidgetModalProps {
   onClose: () => void;
   year: number;
   month: number;
+  /** Period the Dashboard is showing — the saved widget comes back already
+   * rendered over it, so it matches the widgets around it on first paint. */
+  dayRange?: DayRange;
   /** Present -> edit that widget (same form, pre-filled, PATCH on submit).
    * Absent -> create a new one. */
   widget?: DashboardWidget | null;
@@ -47,12 +51,12 @@ const EMPTY_FORM = {
  * never unmounts (DashboardPage renders it unconditionally, Dialog just
  * hides its content), so the fields are (re)populated from `widget` in an
  * effect keyed on `open`, the same pattern TransactionFormModal uses. */
-export function AddWidgetModal({ open, onClose, year, month, widget }: AddWidgetModalProps) {
+export function AddWidgetModal({ open, onClose, year, month, dayRange, widget }: AddWidgetModalProps) {
   const { t } = useTranslation();
   const { data: widgetTypes } = useWidgetTypes();
   const { data: accounts } = useAccounts();
-  const createWidget = useCreateDashboardWidget(year, month);
-  const updateWidget = useUpdateDashboardWidget(year, month);
+  const createWidget = useCreateDashboardWidget(year, month, dayRange);
+  const updateWidget = useUpdateDashboardWidget(year, month, dayRange);
   const isSaving = createWidget.isPending || updateWidget.isPending;
 
   const [chartType, setChartType] = useState(EMPTY_FORM.chartType);

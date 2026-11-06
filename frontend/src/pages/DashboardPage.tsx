@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { DateRangeCalendar } from "@/components/layout/DateRangeCalendar";
 import { MonthSelector } from "@/components/layout/MonthSelector";
 import { YearSelector } from "@/components/layout/YearSelector";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { DashboardWidgetCard } from "@/components/dashboard/DashboardWidgetCard"
 import { AddWidgetModal } from "@/components/dashboard/AddWidgetModal";
 import { AlertBanner } from "@/components/insights/AlertBanner";
 import { useDashboardSummary } from "@/hooks/useDashboard";
+import { EMPTY_DAY_RANGE, monthOfIso, type DayRange } from "@/lib/dateRange";
 import { useTransactionYears } from "@/hooks/useTransactions";
 import { useDashboardWidgets, useDeleteDashboardWidget } from "@/hooks/useDashboardWidgets";
 import { formatCurrency, formatSignedCurrency } from "@/lib/format";
@@ -33,15 +35,44 @@ export function DashboardPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  // Day range inside (or across) the selected month. Everything on the
+  // page reads the same period, so the stat cards, donuts, widgets and
+  // the recent-transactions list can never disagree about which days
+  // they're describing.
+  const [dayRange, setDayRange] = useState<DayRange>(EMPTY_DAY_RANGE);
   const { data: years } = useTransactionYears();
 
-  const { data, isLoading, isError } = useDashboardSummary(year, month);
+  const { data, isLoading, isError } = useDashboardSummary(year, month, dayRange);
   const rate = data ? savingsRate(Number(data.real_income), Number(data.net)) : null;
 
   const [widgetModalOpen, setWidgetModalOpen] = useState(false);
   const [editingWidget, setEditingWidget] = useState<DashboardWidget | null>(null);
-  const { data: widgets } = useDashboardWidgets(year, month);
+  const { data: widgets } = useDashboardWidgets(year, month, dayRange);
   const deleteWidget = useDeleteDashboardWidget();
+
+  // Picking a month or a year means "show me that whole period", which is
+  // exactly what an active day range contradicts.
+  function handleMonthChange(value: number) {
+    setMonth(value);
+    setDayRange(EMPTY_DAY_RANGE);
+  }
+
+  function handleYearChange(value: number) {
+    setYear(value);
+    setDayRange(EMPTY_DAY_RANGE);
+  }
+
+  /** A range picked in the calendar drags the month/year selectors to
+   * wherever it starts, so the header keeps naming the period on screen
+   * even when the range reaches into a neighbouring month. */
+  function handleDayRangeChange(range: DayRange) {
+    setDayRange(range);
+    if (range.startDate) {
+      const { year: rangeYear, month: rangeMonth } = monthOfIso(range.startDate);
+      setYear(rangeYear);
+      setMonth(rangeMonth);
+    }
+  }
 
   function openCreateWidgetModal() {
     setEditingWidget(null);
@@ -63,11 +94,12 @@ export function DashboardPage() {
     <div className="space-y-5">
       <AlertBanner excludeKeys={["risky_allocation_exceeded"]} />
 
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1">
-          <MonthSelector month={month} onChange={setMonth} />
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="min-w-0 flex-1 basis-full sm:basis-auto">
+          <MonthSelector month={month} onChange={handleMonthChange} />
         </div>
-        <YearSelector years={years ?? [now.getFullYear()]} year={year} onChange={setYear} />
+        <YearSelector years={years ?? [now.getFullYear()]} year={year} onChange={handleYearChange} />
+        <DateRangeCalendar value={dayRange} onChange={handleDayRangeChange} year={year} month={month} />
       </div>
 
       {isError && (
@@ -105,7 +137,7 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.4fr_1fr]">
         <SpendingByCategoryCard items={data?.spending_by_category ?? []} />
-        <RecentTransactionsCard year={year} month={month} />
+        <RecentTransactionsCard year={year} month={month} dayRange={dayRange} />
       </div>
 
       <IncomeByCategoryCard items={data?.income_by_category ?? []} />
@@ -138,6 +170,7 @@ export function DashboardPage() {
         onClose={() => setWidgetModalOpen(false)}
         year={year}
         month={month}
+        dayRange={dayRange}
         widget={editingWidget}
       />
     </div>

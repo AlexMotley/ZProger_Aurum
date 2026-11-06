@@ -80,3 +80,17 @@ export function monthDayRange(year: number, month: number): DayRange {
 export function firstWeekdayOfLocale(language: string): number {
   return language === "ru" ? 1 : 0;
 }
+
+/** The year and month a yyyy-mm-dd date falls in. Lets the month/year
+ * selectors follow a range picked in the calendar, so the page header
+ * keeps describing the period actually on screen. */
+export function monthOfIso(iso: string): { year: number; month: number } {
+  return { year: Number(iso.slice(0, 4)), month: Number(iso.slice(5, 7)) };
+}
+
+/** Whether a range is complete enough to filter by. A half-picked range
+ * (start chosen, end not yet) must not reach the API — see
+ * backend/app/services/period.py, which rejects one end on its own. */
+export function isCompleteDayRange(range: DayRange): boolean {
+  return range.startDate !== null && range.endDate !== null;
+}

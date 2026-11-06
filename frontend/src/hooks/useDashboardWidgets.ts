@@ -6,6 +6,7 @@ import {
   fetchWidgetTypes,
   updateDashboardWidget,
 } from "@/api/dashboardWidgets";
+import type { DayRange } from "@/lib/dateRange";
 import type { DashboardWidgetInput } from "@/types";
 
 // Static per session (doesn't depend on year/month, rarely changes) — one
@@ -14,25 +15,27 @@ export function useWidgetTypes() {
   return useQuery({ queryKey: ["dashboard-widget-types"], queryFn: fetchWidgetTypes });
 }
 
-export function useDashboardWidgets(year: number, month: number) {
+export function useDashboardWidgets(year: number, month: number, range?: DayRange) {
   return useQuery({
-    queryKey: ["dashboard-widgets", year, month],
-    queryFn: () => fetchDashboardWidgets(year, month),
+    // Keyed on the range too — see useDashboardSummary for why.
+    queryKey: ["dashboard-widgets", year, month, range?.startDate ?? null, range?.endDate ?? null],
+    queryFn: () => fetchDashboardWidgets(year, month, range),
   });
 }
 
-export function useCreateDashboardWidget(year: number, month: number) {
+export function useCreateDashboardWidget(year: number, month: number, range?: DayRange) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: DashboardWidgetInput) => createDashboardWidget(input, year, month),
+    mutationFn: (input: DashboardWidgetInput) => createDashboardWidget(input, year, month, range),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] }),
   });
 }
 
-export function useUpdateDashboardWidget(year: number, month: number) {
+export function useUpdateDashboardWidget(year: number, month: number, range?: DayRange) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: DashboardWidgetInput }) => updateDashboardWidget(id, input, year, month),
+    mutationFn: ({ id, input }: { id: number; input: DashboardWidgetInput }) =>
+      updateDashboardWidget(id, input, year, month, range),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-widgets"] }),
   });
 }

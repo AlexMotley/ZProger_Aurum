@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   daysInMonth,
   firstWeekdayOfLocale,
+  isCompleteDayRange,
   isoFromParts,
   monthDayRange,
+  monthOfIso,
   todayIso,
 } from "@/lib/dateRange";
 
@@ -57,5 +59,23 @@ describe("firstWeekdayOfLocale", () => {
   it("starts the week where each locale expects it", () => {
     expect(firstWeekdayOfLocale("ru")).toBe(1);
     expect(firstWeekdayOfLocale("en")).toBe(0);
+  });
+});
+
+describe("monthOfIso", () => {
+  it("reads the month the period selectors should jump to", () => {
+    expect(monthOfIso("2026-12-25")).toEqual({ year: 2026, month: 12 });
+    expect(monthOfIso("2027-01-05")).toEqual({ year: 2027, month: 1 });
+  });
+});
+
+describe("isCompleteDayRange", () => {
+  it("accepts only a range with both ends", () => {
+    expect(isCompleteDayRange({ startDate: "2026-11-01", endDate: "2026-11-05" })).toBe(true);
+    // Half a range must never reach the API — the backend rejects it with
+    // a 400 (see backend/app/services/period.py).
+    expect(isCompleteDayRange({ startDate: "2026-11-01", endDate: null })).toBe(false);
+    expect(isCompleteDayRange({ startDate: null, endDate: "2026-11-05" })).toBe(false);
+    expect(isCompleteDayRange({ startDate: null, endDate: null })).toBe(false);
   });
 });

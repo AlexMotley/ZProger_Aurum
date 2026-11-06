@@ -15,7 +15,8 @@ import { useTags } from "@/hooks/useTags";
 import { useAccounts } from "@/hooks/useAccounts";
 import type { TransactionSort } from "@/api/transactions";
 import { useTranslation } from "@/lib/i18n";
-import { EMPTY_DAY_RANGE, type DayRange } from "@/lib/dateRange";
+import { cn } from "@/lib/utils";
+import { EMPTY_DAY_RANGE, monthOfIso, type DayRange } from "@/lib/dateRange";
 import { buildHierarchicalCategories, categoryOptionLabel } from "@/lib/categoryLabels";
 import type { Transaction, TransactionType } from "@/types";
 
@@ -31,6 +32,14 @@ function parseMonthParam(value: string | null, fallback: number): number {
   return Number.isInteger(parsed) && parsed >= 1 && parsed <= 12 ? parsed : fallback;
 }
 
+/** Reads the ?start_date=&end_date= pair a deep link can carry. Both ends
+ * or nothing: one end alone is as meaningless here as it is to the API. */
+function parseDayRangeParams(start: string | null, end: string | null): DayRange {
+  const isIso = (value: string | null): value is string => value !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
+  if (!isIso(start) || !isIso(end) || start > end) return EMPTY_DAY_RANGE;
+  return { startDate: start, endDate: end };
+}
+
 function parseYearParam(value: string | null, fallback: number): number {
   if (value === null) return fallback;
   const parsed = Number(value);
@@ -44,8 +53,12 @@ export function TransactionsPage() {
   // the month/year the user was already looking at (?year=&month=) so this
   // page doesn't reset back to the current month.
   const [searchParams] = useSearchParams();
-  const [year, setYear] = useState(() => parseYearParam(searchParams.get("year"), now.getFullYear()));
-  const [month, setMonth] = useState(() => parseMonthParam(searchParams.get("month"), now.getMonth() + 1));
+  const linkedRange = parseDayRangeParams(searchParams.get("start_date"), searchParams.get("end_date"));
+  const linkedMonth = linkedRange.startDate ? monthOfIso(linkedRange.startDate) : null;
+  const [year, setYear] = useState(() => linkedMonth?.year ?? parseYearParam(searchParams.get("year"), now.getFullYear()));
+  const [month, setMonth] = useState(
+    () => linkedMonth?.month ?? parseMonthParam(searchParams.get("month"), now.getMonth() + 1)
+  );
   const [type, setType] = useState<TransactionType | "">("");
   const [categoryId, setCategoryId] = useState<string>("");
   const [tagId, setTagId] = useState<string>("");
@@ -55,7 +68,9 @@ export function TransactionsPage() {
   // it replaces the month/year filter rather than narrowing it — the API
   // ANDs year/month with start_date/end_date, so sending both would make
   // a range crossing a month boundary impossible.
-  const [dayRange, setDayRange] = useState<DayRange>(EMPTY_DAY_RANGE);
+  const [dayRange, setDayRange] = useState<DayRange>(() =>
+    parseDayRangeParams(searchParams.get("start_date"), searchParams.get("end_date"))
+  );
   const [page, setPage] = useState(1);
 
   // Raw text follows every keystroke; the debounced value is what actually
@@ -127,6 +142,20 @@ export function TransactionsPage() {
     }
   }
 
+  /** A range picked in the calendar moves the month/year selectors to
+   * wherever it starts, so the header keeps naming the period on screen
+   * even when the range reaches into a neighbouring month. Clicking a
+   * month pill afterwards still means "that whole month" and clears it. */
+  function handleDayRangeChange(range: DayRange) {
+    setDayRange(range);
+    if (range.startDate) {
+      const { year: rangeYear, month: rangeMonth } = monthOfIso(range.startDate);
+      setYear(rangeYear);
+      setMonth(rangeMonth);
+    }
+    setPage(1);
+  }
+
   /** Leaves search mode and switches the month/year selectors to whichever
    * month the picked transaction is in, so the user lands back in the normal
    * browsing view with it in context instead of a flat result list. */
@@ -145,8 +174,13 @@ export function TransactionsPage() {
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <div className={`min-w-0 flex-1 ${isSearching ? "pointer-events-none opacity-50" : ""}`}>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+          <div
+            className={cn(
+              "min-w-0 flex-1 basis-full sm:basis-auto",
+              isSearching && "pointer-events-none opacity-50"
+            )}
+          >
             <MonthSelector
               month={month}
               onChange={(value) => {
@@ -158,7 +192,7 @@ export function TransactionsPage() {
               }}
             />
           </div>
-          <div className={isSearching ? "pointer-events-none opacity-50" : ""}>
+          <div className={cn("flex items-center gap-2", isSearching && "pointer-events-none opacity-50")}>
             <YearSelector
               years={years ?? [now.getFullYear()]}
               year={year}
@@ -168,6 +202,7 @@ export function TransactionsPage() {
                 setPage(1);
               }}
             />
+            <DateRangeCalendar value={dayRange} onChange={handleDayRangeChange} year={year} month={month} />
           </div>
         </div>
         <div className="flex gap-2">
@@ -210,18 +245,6 @@ export function TransactionsPage() {
       {isSearching && <p className="text-xs text-text-muted">{t("transactions.searchAcrossAllTime")}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className={isSearching ? "pointer-events-none opacity-50" : ""}>
-          <DateRangeCalendar
-            value={dayRange}
-            onChange={(range) => {
-              setDayRange(range);
-              setPage(1);
-            }}
-            year={year}
-            month={month}
-            className="w-full sm:w-auto"
-          />
-        </div>
         <Select
           value={type}
           onChange={(event) => {

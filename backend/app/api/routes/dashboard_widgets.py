@@ -28,9 +28,13 @@ def read_widget_types() -> list[WidgetTypeManifestEntry]:
 async def read_widgets(
     year: int = Query(default_factory=lambda: date.today().year, ge=2000, le=2100),
     month: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> list[DashboardWidgetRead]:
-    return await list_widgets(session, year, month)
+    """Widgets are recomputed over start_date/end_date when given, so the
+    whole Dashboard answers for the same period — see services/period.py."""
+    return await list_widgets(session, year, month, start_date, end_date)
 
 
 @router.post("", response_model=DashboardWidgetRead, status_code=201)
@@ -38,9 +42,11 @@ async def add_widget(
     payload: DashboardWidgetCreate,
     year: int = Query(default_factory=lambda: date.today().year, ge=2000, le=2100),
     month: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardWidgetRead:
-    return await create_widget(session, payload, year, month)
+    return await create_widget(session, payload, year, month, start_date, end_date)
 
 
 @router.patch("/{widget_id}", response_model=DashboardWidgetRead)
@@ -49,9 +55,11 @@ async def edit_widget(
     payload: DashboardWidgetCreate,
     year: int = Query(default_factory=lambda: date.today().year, ge=2000, le=2100),
     month: int = Query(default_factory=lambda: date.today().month, ge=1, le=12),
+    start_date: date | None = Query(default=None),
+    end_date: date | None = Query(default=None),
     session: AsyncSession = Depends(get_session),
 ) -> DashboardWidgetRead:
-    return await update_widget(session, widget_id, payload, year, month)
+    return await update_widget(session, widget_id, payload, year, month, start_date, end_date)
 
 
 @router.delete("/{widget_id}", status_code=204)

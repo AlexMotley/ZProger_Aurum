@@ -3,7 +3,6 @@ live chart data via services/diagrams.py at read time — a widget's numbers
 are never cached/stored, they're recomputed against the current month's
 transactions every time the Dashboard loads, the same "derive it, don't
 duplicate it" approach account_service.py uses for balances."""
-import calendar
 from datetime import date as date_
 
 from fastapi import HTTPException
@@ -13,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.dashboard_widget import DashboardWidget
 from app.models.enums import WidgetType
+from app.services.period import resolve_period
 from app.schemas.dashboard_widget import (
     DashboardWidgetCreate,
     DashboardWidgetRead,
@@ -33,11 +33,6 @@ def list_widget_types() -> list[WidgetTypeManifestEntry]:
         )
         for diagram_cls in DIAGRAM_REGISTRY.values()
     ]
-
-
-def _month_bounds(year: int, month: int) -> tuple[date_, date_]:
-    last_day = calendar.monthrange(year, month)[1]
-    return date_(year, month, 1), date_(year, month, last_day)
 
 
 def _build_diagram(widget_type: WidgetType, fields: dict, start: date_ | None, end: date_ | None) -> Diagram:
@@ -101,8 +96,16 @@ async def _to_read(session: AsyncSession, widget: DashboardWidget, start: date_,
     )
 
 
-async def list_widgets(session: AsyncSession, year: int, month: int) -> list[DashboardWidgetRead]:
-    start, end = _month_bounds(year, month)
+async def list_widgets(
+    session: AsyncSession,
+    year: int,
+    month: int,
+    start_date: date_ | None = None,
+    end_date: date_ | None = None,
+) -> list[DashboardWidgetRead]:
+    """`start_date`/`end_date` recompute every widget against that day
+    range instead of the whole month — see services/period.py."""
+    start, end = resolve_period(year, month, start_date, end_date)
     rows = (
         (await session.execute(select(DashboardWidget).order_by(DashboardWidget.sort_order, DashboardWidget.id)))
         .scalars()
@@ -127,7 +130,14 @@ def _apply_fields(widget: DashboardWidget, payload: DashboardWidgetCreate) -> No
     widget.account_id = payload.account_id
 
 
-async def create_widget(session: AsyncSession, payload: DashboardWidgetCreate, year: int, month: int) -> DashboardWidgetRead:
+async def create_widget(
+    session: AsyncSession,
+    payload: DashboardWidgetCreate,
+    year: int,
+    month: int,
+    start_date: date_ | None = None,
+    end_date: date_ | None = None,
+) -> DashboardWidgetRead:
     await _validate_and_check_account(session, payload)
 
     max_sort_order = (await session.execute(select(func.max(DashboardWidget.sort_order)))).scalar_one()
@@ -137,12 +147,18 @@ async def create_widget(session: AsyncSession, payload: DashboardWidgetCreate, y
     await session.commit()
     await session.refresh(widget)
 
-    start, end = _month_bounds(year, month)
+    start, end = resolve_period(year, month, start_date, end_date)
     return await _to_read(session, widget, start, end)
 
 
 async def update_widget(
-    session: AsyncSession, widget_id: int, payload: DashboardWidgetCreate, year: int, month: int
+    session: AsyncSession,
+    widget_id: int,
+    payload: DashboardWidgetCreate,
+    year: int,
+    month: int,
+    start_date: date_ | None = None,
+    end_date: date_ | None = None,
 ) -> DashboardWidgetRead:
     widget = await session.get(DashboardWidget, widget_id)
     if widget is None:
@@ -153,7 +169,7 @@ async def update_widget(
     await session.commit()
     await session.refresh(widget)
 
-    start, end = _month_bounds(year, month)
+    start, end = resolve_period(year, month, start_date, end_date)
     return await _to_read(session, widget, start, end)
 
 

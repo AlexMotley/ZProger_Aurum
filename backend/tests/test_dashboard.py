@@ -182,3 +182,96 @@ async def test_a_single_category_slice_has_no_children_breakdown(client: AsyncCl
     breakdown = {row["name"]: row for row in resp.json()["spending_by_category"]}
 
     assert breakdown["Groceries"]["children"] == []
+
+
+async def test_day_range_narrows_the_summary_inside_a_month(client: AsyncClient, account_id, categories):
+    """The Dashboard's calendar picker asks for days, not whole months — a
+    range must count only what falls inside it, even when everything shares
+    one month."""
+    groceries = categories["Groceries"]["id"]
+
+    # In scope: the 10th to the 20th.
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="100.00", category_id=groceries, date="2026-08-10")
+    )
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="50.00", category_id=groceries, date="2026-08-20")
+    )
+    # Out of scope: same month, one day either side of the range.
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="9999.00", category_id=groceries, date="2026-08-09")
+    )
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="9999.00", category_id=groceries, date="2026-08-21")
+    )
+
+    resp = await client.get("/dashboard/summary", params={"start_date": "2026-08-10", "end_date": "2026-08-20"})
+    assert money(resp.json()["spent"]) == Decimal("150.00")
+
+
+async def test_day_range_may_cross_a_month_boundary(client: AsyncClient, account_id, categories):
+    """"25 Dec to 5 Jan" is the case a month-at-a-time filter can't express
+    at all, so it's the one worth pinning down."""
+    groceries = categories["Groceries"]["id"]
+
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="40.00", category_id=groceries, date="2026-12-26")
+    )
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="60.00", category_id=groceries, date="2027-01-04")
+    )
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="9999.00", category_id=groceries, date="2026-12-24")
+    )
+
+    resp = await client.get("/dashboard/summary", params={"start_date": "2026-12-25", "end_date": "2027-01-05"})
+    body = resp.json()
+    assert money(body["spent"]) == Decimal("100.00")
+    # The echoed period names where the range starts, which is what the
+    # frontend's month/year selectors follow.
+    assert (body["year"], body["month"]) == (2026, 12)
+
+
+async def test_day_range_overrides_year_and_month_instead_of_combining(client: AsyncClient, account_id, categories):
+    """Both forms can arrive together (a stale year/month alongside a fresh
+    range); the range has to win, or a cross-month range would silently
+    return nothing."""
+    groceries = categories["Groceries"]["id"]
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="70.00", category_id=groceries, date="2026-08-15")
+    )
+
+    resp = await client.get(
+        "/dashboard/summary",
+        params={"year": 2026, "month": 3, "start_date": "2026-08-01", "end_date": "2026-08-31"},
+    )
+    assert money(resp.json()["spent"]) == Decimal("70.00")
+
+
+async def test_day_range_boundaries_are_inclusive(client: AsyncClient, account_id, categories):
+    groceries = categories["Groceries"]["id"]
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="11.00", category_id=groceries, date="2026-08-10")
+    )
+    await client.post(
+        "/transactions", json=_txn(account_id, amount="22.00", category_id=groceries, date="2026-08-12")
+    )
+
+    resp = await client.get("/dashboard/summary", params={"start_date": "2026-08-10", "end_date": "2026-08-12"})
+    assert money(resp.json()["spent"]) == Decimal("33.00")
+
+
+async def test_one_end_of_a_day_range_on_its_own_is_rejected(client: AsyncClient):
+    """Half a range would read as "this month, but also everything after
+    the 5th" — nonsense no caller means, so it's a 400 rather than a quietly
+    odd result."""
+    resp = await client.get("/dashboard/summary", params={"start_date": "2026-08-10"})
+    assert resp.status_code == 400
+
+    resp = await client.get("/dashboard/summary", params={"end_date": "2026-08-10"})
+    assert resp.status_code == 400
+
+
+async def test_an_inverted_day_range_is_rejected(client: AsyncClient):
+    resp = await client.get("/dashboard/summary", params={"start_date": "2026-08-20", "end_date": "2026-08-10"})
+    assert resp.status_code == 400
