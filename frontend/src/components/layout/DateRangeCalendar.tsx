@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { getIntlLocale, formatTransactionDate } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
+import { cn, horizontalViewportShift } from "@/lib/utils";
 import {
   daysInMonth,
   firstWeekdayOfLocale,
@@ -46,7 +46,10 @@ export function DateRangeCalendar({ value, onChange, year, month, maxDate, class
   // published upwards.
   const [pendingStart, setPendingStart] = useState<string | null>(null);
   const [hovered, setHovered] = useState<string | null>(null);
+  // Horizontal nudge that keeps the popover on screen — see keepInViewport.
+  const [offset, setOffset] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   const upperBound = maxDate ?? todayIso();
 
@@ -61,6 +64,41 @@ export function DateRangeCalendar({ value, onChange, year, month, maxDate, class
     setPendingStart(null);
     setHovered(null);
   }, [open, year, month, value.startDate]);
+
+  /** The trigger can sit anywhere on its row — rightmost on the Dashboard,
+   * leftmost once the controls wrap on a phone — so neither a left- nor a
+   * right-anchored popover stays on screen on its own. Measure where it
+   * actually landed and slide it back inside instead. Reads the rect with
+   * the current offset already applied, so the correction is relative and
+   * settles after one pass (a no-op pass sets no state, so it can't loop). */
+  const keepInViewport = useCallback(() => {
+    const popover = popoverRef.current;
+    if (!popover) return;
+    const delta = horizontalViewportShift(popover.getBoundingClientRect(), window.innerWidth);
+    if (delta !== 0) setOffset((previous) => previous + delta);
+  }, []);
+
+  // useLayoutEffect, not useEffect: the correction has to land before the
+  // browser paints, or the popover visibly jumps on open.
+  useLayoutEffect(() => {
+    if (!open) {
+      setOffset(0);
+      return;
+    }
+    keepInViewport();
+  }, [open, keepInViewport]);
+
+  useEffect(() => {
+    if (!open) return;
+    // Rotating a phone changes which side was overflowing.
+    window.addEventListener("resize", keepInViewport);
+    return () => window.removeEventListener("resize", keepInViewport);
+  }, [open, keepInViewport]);
+
+  // Re-check after the grid's height/width changes with the month shown.
+  useLayoutEffect(() => {
+    if (open) keepInViewport();
+  }, [open, viewYear, viewMonth, keepInViewport]);
 
   useEffect(() => {
     if (!open) return;
@@ -190,11 +228,13 @@ export function DateRangeCalendar({ value, onChange, year, month, maxDate, class
 
       {open && (
         <div
+          ref={popoverRef}
           role="dialog"
           aria-label={t("transactions.dayRange.trigger")}
-          // Pinned to the left edge and capped at the viewport width so the
-          // popover can't run off-screen on a phone.
-          className="absolute left-0 top-full z-20 mt-1.5 w-[17.5rem] max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-surface-1 p-3 shadow-lg"
+          // Anchored to the trigger's left edge, then nudged horizontally by
+          // keepInViewport so it never hangs off either side of the screen.
+          className="absolute left-0 top-full z-20 mt-1.5 w-[17.5rem] max-w-[calc(100vw-1rem)] rounded-lg border border-border bg-surface-1 p-3 shadow-lg"
+          style={offset === 0 ? undefined : { transform: `translateX(${offset}px)` }}
         >
           <div className="mb-2 flex items-center justify-between">
             <button
