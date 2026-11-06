@@ -4,6 +4,7 @@ import { FileUp, Plus, Search, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input, Select } from "@/components/ui/Input";
+import { DateRangeCalendar } from "@/components/layout/DateRangeCalendar";
 import { MonthSelector } from "@/components/layout/MonthSelector";
 import { YearSelector } from "@/components/layout/YearSelector";
 import { TransactionsTable } from "@/components/transactions/TransactionsTable";
@@ -14,6 +15,7 @@ import { useTags } from "@/hooks/useTags";
 import { useAccounts } from "@/hooks/useAccounts";
 import type { TransactionSort } from "@/api/transactions";
 import { useTranslation } from "@/lib/i18n";
+import { EMPTY_DAY_RANGE, type DayRange } from "@/lib/dateRange";
 import { buildHierarchicalCategories, categoryOptionLabel } from "@/lib/categoryLabels";
 import type { Transaction, TransactionType } from "@/types";
 
@@ -49,6 +51,11 @@ export function TransactionsPage() {
   const [tagId, setTagId] = useState<string>("");
   const [accountId, setAccountId] = useState<string>("");
   const [sort, setSort] = useState<TransactionSort>("date_desc");
+  // Day-level span inside (or across) the selected month. While it's set
+  // it replaces the month/year filter rather than narrowing it — the API
+  // ANDs year/month with start_date/end_date, so sending both would make
+  // a range crossing a month boundary impossible.
+  const [dayRange, setDayRange] = useState<DayRange>(EMPTY_DAY_RANGE);
   const [page, setPage] = useState(1);
 
   // Raw text follows every keystroke; the debounced value is what actually
@@ -71,11 +78,15 @@ export function TransactionsPage() {
   const { data: tags } = useTags();
   const { data: accounts } = useAccounts();
   const { data: years } = useTransactionYears();
+  const hasDayRange = dayRange.startDate !== null && dayRange.endDate !== null;
   const { data, isLoading, isError } = useTransactions({
     // A search looks for a purchase from an unknown month, so it must span
-    // every period instead of being boxed into the currently selected one.
-    year: isSearching ? undefined : year,
-    month: isSearching ? undefined : month,
+    // every period instead of being boxed into the currently selected one —
+    // which goes for the day range too, not just month/year.
+    year: isSearching || hasDayRange ? undefined : year,
+    month: isSearching || hasDayRange ? undefined : month,
+    start_date: isSearching || !hasDayRange ? undefined : dayRange.startDate!,
+    end_date: isSearching || !hasDayRange ? undefined : dayRange.endDate!,
     search: isSearching ? search : undefined,
     type: type || undefined,
     category_id: categoryId ? Number(categoryId) : undefined,
@@ -123,6 +134,9 @@ export function TransactionsPage() {
     const date = new Date(`${transaction.date}T00:00:00`);
     setYear(date.getFullYear());
     setMonth(date.getMonth() + 1);
+    // Without this the user lands in the right month with last session's
+    // day range still applied, and sees an empty list.
+    setDayRange(EMPTY_DAY_RANGE);
     setSearchInput("");
     setSearch("");
     setPage(1);
@@ -137,6 +151,9 @@ export function TransactionsPage() {
               month={month}
               onChange={(value) => {
                 setMonth(value);
+                // Picking a month means "show me that whole month", which
+                // is exactly what an active day range contradicts.
+                setDayRange(EMPTY_DAY_RANGE);
                 setPage(1);
               }}
             />
@@ -147,6 +164,7 @@ export function TransactionsPage() {
               year={year}
               onChange={(value) => {
                 setYear(value);
+                setDayRange(EMPTY_DAY_RANGE);
                 setPage(1);
               }}
             />
@@ -192,6 +210,18 @@ export function TransactionsPage() {
       {isSearching && <p className="text-xs text-text-muted">{t("transactions.searchAcrossAllTime")}</p>}
 
       <div className="flex flex-col gap-3 sm:flex-row">
+        <div className={isSearching ? "pointer-events-none opacity-50" : ""}>
+          <DateRangeCalendar
+            value={dayRange}
+            onChange={(range) => {
+              setDayRange(range);
+              setPage(1);
+            }}
+            year={year}
+            month={month}
+            className="w-full sm:w-auto"
+          />
+        </div>
         <Select
           value={type}
           onChange={(event) => {

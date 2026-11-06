@@ -31,3 +31,52 @@ export function computeRange(
     }
   }
 }
+
+/** A day-level span inside one list of transactions — both ends inclusive,
+ * both null while nothing is picked. Separate from RangePreset above: that
+ * one answers "which years", this one "which days". */
+export interface DayRange {
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export const EMPTY_DAY_RANGE: DayRange = { startDate: null, endDate: null };
+
+/** Builds a yyyy-mm-dd string out of calendar parts. Deliberately not via
+ * Date.toISOString() (as isoDate() above does) — that converts to UTC
+ * first, so a date picked in a positive-offset timezone would come back
+ * shifted one day earlier. Here the parts are already the local ones the
+ * user clicked, so they're formatted as-is. */
+export function isoFromParts(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** How many days a month has; `month` is 1-12. Day 0 of the following
+ * month is the last day of this one, which gets February's leap years
+ * right without a special case. */
+export function daysInMonth(year: number, month: number): number {
+  return new Date(year, month, 0).getDate();
+}
+
+/** Today in the user's own timezone — see isoFromParts for why this isn't
+ * toISOString(). */
+export function todayIso(): string {
+  const now = new Date();
+  return isoFromParts(now.getFullYear(), now.getMonth() + 1, now.getDate());
+}
+
+/** The whole of one month as a range, behind the calendar's "whole month"
+ * shortcut. */
+export function monthDayRange(year: number, month: number): DayRange {
+  return {
+    startDate: isoFromParts(year, month, 1),
+    endDate: isoFromParts(year, month, daysInMonth(year, month)),
+  };
+}
+
+/** Weekday the calendar grid starts on: Monday for ru, Sunday for en,
+ * matching what each locale's own calendars do. Returned as a JS day index
+ * (0 = Sunday) so it can be subtracted from Date.getDay() directly. */
+export function firstWeekdayOfLocale(language: string): number {
+  return language === "ru" ? 1 : 0;
+}
