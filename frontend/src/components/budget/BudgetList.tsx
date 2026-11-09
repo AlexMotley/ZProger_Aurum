@@ -3,6 +3,8 @@ import { getCategoryIcon } from "@/lib/icons";
 import { formatCurrency } from "@/lib/format";
 import { useTranslation } from "@/lib/i18n";
 import { translateCategoryName } from "@/lib/categoryLabels";
+import { budgetBarGeometry } from "@/lib/budgetBar";
+import { cn } from "@/lib/utils";
 import type { BudgetStatus } from "@/types";
 
 interface BudgetListProps {
@@ -24,8 +26,14 @@ export function BudgetList({ items, onEdit, onDelete }: BudgetListProps) {
         const Icon = getCategoryIcon(item.category_icon);
         const spent = Number(item.spent);
         const limit = Number(item.monthly_limit);
-        const barColor = item.is_over_budget ? "var(--danger)" : "var(--success)";
-        const fillPercent = Math.min(100, item.percent);
+        // Green up to the limit, red past it. Once the limit is passed the
+        // bar is rescaled to the amount spent so there is room to draw the
+        // overrun at all — see lib/budgetBar.ts.
+        const { withinPercent, overPercent } = budgetBarGeometry(spent, limit, item.is_over_budget);
+        // How far past the limit, relative to the limit itself. Derived from
+        // the same percent shown beside the bar, so "136%" and "over by 36%"
+        // can never round to different numbers.
+        const overspendPercent = limit > 0 ? item.percent - 100 : 0;
 
         return (
           <li key={item.budget_id} className="py-3">
@@ -62,11 +70,29 @@ export function BudgetList({ items, onEdit, onDelete }: BudgetListProps) {
               </span>
             </div>
             <div className="mt-2 flex items-center gap-2 pl-12">
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-                <span
-                  className="block h-full rounded-full"
-                  style={{ width: `${fillPercent}%`, backgroundColor: barColor }}
-                />
+              {/* Taller than the bar so the limit mark can stand out above and
+                  below it instead of being clipped by the track's own
+                  overflow-hidden. */}
+              <span className="relative h-3 flex-1">
+                <span className="absolute inset-x-0 top-1/2 flex h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-surface-2">
+                  <span
+                    className={cn("h-full shrink-0", overPercent > 0 ? "rounded-l-full" : "rounded-full")}
+                    style={{ width: `${withinPercent}%`, backgroundColor: "var(--success)" }}
+                  />
+                  {/* flex-1 rather than a second percentage width: the two
+                      sections then always meet exactly, with no sliver of
+                      empty track showing through from rounding. */}
+                  {overPercent > 0 && (
+                    <span className="h-full flex-1 rounded-r-full" style={{ backgroundColor: "var(--danger)" }} />
+                  )}
+                </span>
+                {overPercent > 0 && (
+                  <span
+                    title={t("budget.limitMark", { amount: formatCurrency(limit) })}
+                    className="absolute top-0 h-3 w-0.5 -translate-x-1/2 rounded-full bg-text-primary"
+                    style={{ left: `${withinPercent}%` }}
+                  />
+                )}
               </span>
               <span className="w-10 shrink-0 text-right text-xs tabular-nums text-text-muted">
                 {item.percent.toFixed(0)}%
@@ -74,7 +100,10 @@ export function BudgetList({ items, onEdit, onDelete }: BudgetListProps) {
             </div>
             <p className="mt-1 pl-12 text-xs" style={{ color: item.is_over_budget ? "var(--danger)" : "var(--text-muted)" }}>
               {item.is_over_budget
-                ? t("budget.overBy", { amount: formatCurrency(spent - limit) })
+                ? t("budget.overBy", {
+                    amount: formatCurrency(spent - limit),
+                    percent: overspendPercent.toFixed(0),
+                  })
                 : t("budget.remaining", { amount: formatCurrency(limit - spent) })}
             </p>
           </li>

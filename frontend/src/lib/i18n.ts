@@ -442,7 +442,8 @@ const ru = {
 
   "budget.empty": "Бюджетов пока нет. Задайте лимит для категории расходов, чтобы отслеживать её здесь.",
   "budget.remaining": "{{amount}} осталось",
-  "budget.overBy": "Превышен на {{amount}}",
+  "budget.overBy": "Превышен на {{amount}} ({{percent}}%)",
+  "budget.limitMark": "Лимит: {{amount}}",
   "budget.confirmDelete": "Удалить бюджет для «{{name}}»?",
   "budget.form.newTitle": "Новый бюджет",
   "budget.form.editTitle": "Изменить бюджет",
@@ -1015,7 +1016,8 @@ const en: Record<keyof typeof ru, string> = {
 
   "budget.empty": "No budgets yet. Set a limit for an expense category to start tracking it here.",
   "budget.remaining": "{{amount}} left",
-  "budget.overBy": "Over by {{amount}}",
+  "budget.overBy": "Over by {{amount}} ({{percent}}%)",
+  "budget.limitMark": "Limit: {{amount}}",
   "budget.confirmDelete": "Delete the budget for “{{name}}”?",
   "budget.form.newTitle": "New budget",
   "budget.form.editTitle": "Edit budget",

@@ -33,8 +33,10 @@ class BudgetStatus(BaseModel):
     monthly_limit: Decimal
     spent: Decimal
     remaining: Decimal
-    # Can exceed 100 — the UI clamps the progress bar fill, not this number,
-    # so "spent 150% of budget" is still visible in the raw value.
+    # Can exceed 100 — this number is never clamped, so "spent 150% of
+    # budget" stays visible in the raw value. The UI reads it for the caption
+    # beside the progress bar and for how far past the limit the overrun is;
+    # the bar itself rescales once the limit is passed instead of clamping.
     percent: float
     is_over_budget: bool
 
